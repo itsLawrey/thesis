@@ -1,4 +1,6 @@
 import streamlit as st
 
-st.set_page_config(page_title="soterats project", layout="wide")
-st.markdown("# Hello World.")
+
+if __name__ == "__main__":
+    st.set_page_config(page_title="soterats project", layout="wide")
+    st.write("# Hello World.")

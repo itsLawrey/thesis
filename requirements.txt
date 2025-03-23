@@ -1,1 +1,4 @@
+ultralytics
+numpy
+segment-anything
 
