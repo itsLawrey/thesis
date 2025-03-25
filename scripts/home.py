@@ -1,5 +1,6 @@
 import streamlit as st
 import math
+import scripts.pipeline as pipeline 
 
 
 def calculate_square(user_input):
