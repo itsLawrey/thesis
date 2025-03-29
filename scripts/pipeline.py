@@ -1,12 +1,5 @@
 #IMPORTS
-import sys
-import pprint
 import os
-import shutil
-from ultralytics import YOLO
-from segment_anything import sam_model_registry, SamPredictor
-import cv2
-import numpy as np
 import torch
 import time
 start_time = time.time()
@@ -99,26 +92,17 @@ if __name__ == "__main__":
     predictions = predict.predict_with_yolo(r'C:\Users\loran\OneDrive - elte.hu\ELTE\szakdolgozat\program\data_2_predict_on\a\frame_00101.png', YOLO_MODEL_PATH)
     
     predict.save_initial_predictions(predictions, SAVE_INITIAL_PREDICTIONS, PREDICTIONS_PATH)
-            
-
 
 #SAM MASK IDENTIFICATION
     prediction_masks = masks.get_masks_with_sam(predictions)
     
     masks.save_sam_masks(prediction_masks, SAVE_MASKS, MASKS_PATH)
 
-
-
-
-
-
 #OPTICAL FLOW FILTERING
 
 #SKELETONIZE TOE CORRECTION
 
 #SUMMING UP DATA - PLOTS, VIDEOS
-
-
     end_time = time.time()
     runtime = end_time - start_time
     print(f"\nTotal execution time: {runtime:.2f} seconds")

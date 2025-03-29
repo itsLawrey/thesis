@@ -1,5 +1,4 @@
 from scripts.pipeline import log, warn
-from ultralytics import YOLO
 import numpy as np
 import cv2
 from segment_anything import sam_model_registry, SamPredictor
@@ -26,9 +25,9 @@ def load_sam_model(model_type, checkpoint, device):
     log(f"SAM model loaded and moved to {device}.")
     return SamPredictor(sam)
 
-def get_masks_with_sam(predictions):
+def get_masks_with_sam(predictions, model_type, checkpoint, device):
     
-    sam_predictor = load_sam_model()
+    sam_predictor = load_sam_model(model_type, checkpoint, device)
     
     log("Computing SAM masks for each image...")
     
