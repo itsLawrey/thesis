@@ -37,6 +37,7 @@ def get_masks_with_sam(predictions, model_type, checkpoint, device):
         
         #original images!!!
         img_path = result.path
+        log(f"Processing {os.path.basename(img_path)} for mask.")
         img = cv2.imread(img_path)
 
         if img is None:
