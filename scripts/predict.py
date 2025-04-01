@@ -1,4 +1,4 @@
-from scripts.pipeline import log, warn
+from logs import log, warn
 from ultralytics import YOLO
 import shutil
 

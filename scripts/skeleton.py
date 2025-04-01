@@ -1,6 +1,6 @@
 import numpy as np
 from skimage.morphology import skeletonize
-from pipeline import warn, log
+from logs import log, warn
 import cv2
 import os
 import torch # ensure torch is imported

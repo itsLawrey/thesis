@@ -1,7 +1,7 @@
 import cv2
 import os
 import numpy as np # Useful for handling keypoints array
-from pipeline import log, warn
+from logs import log, warn
 
 def sort_nicely(files):
     """Sort the given list of files in a human-friendly way (numerically)."""
