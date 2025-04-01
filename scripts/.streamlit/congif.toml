@@ -1,0 +1,7 @@
+# [server]
+# Prevent the file watcher from trying to inspect the torch library,
+# which can cause errors with PyTorch's C++ extensions.
+#folderWatchBlacklist = ['/home/dalloslorand/.envs/venv_yolo_v12/lib/python3.10/site-packages/torch']
+
+[browser]
+gatherUsageStats = false
