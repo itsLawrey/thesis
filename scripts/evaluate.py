@@ -17,106 +17,135 @@ def sort_nicely(files):
         return [try_int(c) for c in re.split('([0-9]+)', s)]
 
     return sorted(files, key=alphanum_key)
-#TODO: output path csak folder legyen es az input neve vege legyen az mp4 neve
-def create_video_from_image_frames(folder_path, output_video_path, fps=30):
-    # Get a list of image files in the folder, explicitly excluding subdirectories
-    image_files = [f for f in os.listdir(folder_path)
-                   if f.lower().endswith(('.png', '.jpg', '.jpeg'))
-                   and os.path.isfile(os.path.join(folder_path, f))]
-    
-    # Sort files in numerical order using the custom sort function
-    image_files = sort_nicely(image_files)
-    
-    if not image_files:
-        print("No images found in the folder.")
+
+
+
+
+def create_video_from_image_frames(folder_path, output_folder, fps=25):
+    """
+    Creates a video from image frames stored in a specified folder.
+
+    The output video file will be named after the input folder (e.g.,
+    if folder_path is '/path/to/my_images', the output will be
+    '<output_folder>/my_images.mp4').
+
+    Args:
+        folder_path (str): The path to the folder containing the image frames.
+        output_folder (str): The path to the folder where the output video
+                            will be saved.
+        fps (int): The desired frame rate for the output video. Defaults to 25.
+    """
+    print(f"[INFO] Starting video creation from folder: {folder_path}")
+    print(f"[INFO] Output will be saved in: {output_folder}")
+
+    # --- Validate Input Folder ---
+    if not os.path.isdir(folder_path):
+        print(f"[ERROR] Input folder not found or is not a directory: {folder_path}")
         return
-    
-    # Create the output folder if it doesn't exist
-    output_folder = os.path.dirname(output_video_path)
-    os.makedirs(output_folder, exist_ok=True)
-    
-    # Load the first image to get video properties
+
+    # --- Get Image Files ---
+    try:
+        # List files, ensuring they are actual files and have image extensions
+        image_files = [f for f in os.listdir(folder_path)
+                    if os.path.isfile(os.path.join(folder_path, f)) and
+                        f.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff'))]
+    except OSError as e:
+        print(f"[ERROR] Could not read directory {folder_path}: {e}")
+        return
+
+    if not image_files:
+        print(f"[WARNING] No suitable image files (.png, .jpg, .jpeg, .bmp, .tiff) found in {folder_path}.")
+        return
+
+    # --- Sort Files ---
+    print(f"[INFO] Found {len(image_files)} image files. Sorting numerically...")
+    # Use sort_nicely for human-friendly numeric sorting (e.g., frame_1, frame_2, frame_10)
+    image_files = sort_nicely(image_files)
+    # print(f"[DEBUG] Sorted files (first 10): {image_files[:10]}") # Optional debug print
+
+    # --- Prepare Output Path ---
+    # Ensure the output directory exists
+    try:
+        os.makedirs(output_folder, exist_ok=True)
+        print(f"[INFO] Ensured output directory exists: {output_folder}")
+    except OSError as e:
+        print(f"[ERROR] Could not create output directory {output_folder}: {e}")
+        return
+
+    # Get the base name of the input folder
+    input_folder_basename = os.path.basename(os.path.normpath(folder_path))
+    if not input_folder_basename: # Handle cases like '/' or '.'
+        input_folder_basename = "output_video" # Provide a default name
+        print(f"[WARNING] Could not determine input folder name, using default: {input_folder_basename}")
+
+    # Construct the final output video path
+    output_video_filename = f"{input_folder_basename}.mp4"
+    final_output_video_path = os.path.join(output_folder, output_video_filename)
+    print(f"[INFO] Final output video path set to: {final_output_video_path}")
+
+
+    # --- Get Video Properties from First Image ---
     first_image_path = os.path.join(folder_path, image_files[0])
+    print(f"[INFO] Reading first image for dimensions: {first_image_path}")
     first_image = cv2.imread(first_image_path)
     if first_image is None:
-        print(f"Error loading the first image {first_image_path}")
+        print(f"[ERROR] Failed to load the first image: {first_image_path}. Cannot determine video dimensions.")
         return
-    
-    height, width, _ = first_image.shape
 
-    # Initialize video writer (with frame rate and proper codec)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4
-    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+    height, width, layers = first_image.shape
+    if layers != 3:
+        print(f"[WARNING] First image has {layers} channels. Video writer expects 3 (BGR). Problems might occur.")
 
-    # Process each image and write it to the video
+    print(f"[INFO] Video dimensions set to: Width={width}, Height={height}")
+
+    # --- Initialize Video Writer ---
+    # Using 'mp4v' codec for .mp4 files. Alternatives include 'XVID'.
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    try:
+        out = cv2.VideoWriter(final_output_video_path, fourcc, float(fps), (width, height))
+        if not out.isOpened():
+            print(f"[ERROR] Failed to open VideoWriter for path: {final_output_video_path}. Check codec availability and permissions.")
+            return
+        print(f"[INFO] VideoWriter initialized successfully.")
+    except Exception as e:
+        print(f"[ERROR] Exception during VideoWriter initialization: {e}")
+        return
+
+
+    # --- Process Images and Write Video ---
+    print(f"[INFO] Writing {len(image_files)} frames to video...")
     for idx, image_file in enumerate(image_files):
         image_path = os.path.join(folder_path, image_file)
         image = cv2.imread(image_path)
-        
+
         if image is None:
-            print(f"Error loading image {image_path}")
+            print(f"[WARNING] Skipping frame: Error loading image {image_path}")
             continue
-        
-        # Resize image to match the first image's resolution (to avoid dimension mismatches)
-        resized_image = cv2.resize(image, (width, height))
 
-        # Write the resized image as a frame to the video
-        out.write(resized_image)
+        # Ensure frame dimensions match the video dimensions
+        if image.shape[0] != height or image.shape[1] != width:
+            print(f"[WARNING] Resizing frame {image_file} from {image.shape[:2]} to {(height, width)}")
+            image = cv2.resize(image, (width, height), interpolation=cv2.INTER_AREA)
+        elif image.shape[2] != layers:
+            print(f"[WARNING] Frame {image_file} has {image.shape[2]} channels, expected {layers}. Skipping frame.")
+            continue # Skip frames with wrong number of channels
 
-        # Logging to verify the correct order of processing
-        print(f"Writing frame {idx + 1} of {len(image_files)}: {image_file}")
 
-    # Release the video writer
+        # Write the frame
+        out.write(image)
+
+        # Optional: Progress indicator
+        if (idx + 1) % 50 == 0 or (idx + 1) == len(image_files):
+            print(f"  Processed frame {idx + 1}/{len(image_files)}: {image_file}")
+
+
+    # --- Release Resources ---
+    print("[INFO] Releasing VideoWriter...")
     out.release()
-    print(f"Video saved at {output_video_path}")
-#TODO:
-def create_video_from_image_lists(imlist, output_video_path, fps=30):
-    # Sort files in numerical order using the custom sort function
-    image_files = sort_nicely(image_files)
-    
-    if not image_files:
-        print("No images found in the folder.")
-        return
-    
-    # Create the output folder if it doesn't exist
-    output_folder = os.path.dirname(output_video_path)
-    os.makedirs(output_folder, exist_ok=True)
-    
-    # Load the first image to get video properties
-    #TODO FIX
-    first_image_path = os.path.join(folder_path, image_files[0])
-    first_image = cv2.imread(first_image_path)
-    if first_image is None:
-        print(f"Error loading the first image {first_image_path}")
-        return
-    
-    height, width, _ = first_image.shape
+    print(f"[INFO] Video creation complete. File saved at: {final_output_video_path}")
 
-    # Initialize video writer (with frame rate and proper codec)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4
-    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
 
-    # Process each image and write it to the video
-    for idx, image_file in enumerate(image_files):
-        image_path = os.path.join(folder_path, image_file)
-        image = cv2.imread(image_path)
-        
-        if image is None:
-            print(f"Error loading image {image_path}")
-            continue
-        
-        # Resize image to match the first image's resolution (to avoid dimension mismatches)
-        resized_image = cv2.resize(image, (width, height))
 
-        # Write the resized image as a frame to the video
-        out.write(resized_image)
-
-        # Logging to verify the correct order of processing
-        print(f"Writing frame {idx + 1} of {len(image_files)}: {image_file}")
-
-    # Release the video writer
-    out.release()
-    print(f"Video saved at {output_video_path}")
 
 def darker_color(color, amount=50):
     """Creates a darker version of the input BGR color."""
@@ -462,3 +491,10 @@ def draw_uncorrected_predictions(yolo_results_list, output_folder=None, save_ima
         log(f"Attempted to save {successfully_saved_count} annotated uncorrected images to {output_path_obj}.")
 
     return annotated_image_objects # <--- Return the list of image objects
+
+
+
+# if __name__ == "__main__":
+#     create_video_from_image_frames('/home/dalloslorand/YOLO_lori/cut_video_images_4_pred/R5W1_500',
+#                                    "/home/dalloslorand/YOLO_lori/predicted_videos/sample_videos_for_prediction",
+#                                    25)

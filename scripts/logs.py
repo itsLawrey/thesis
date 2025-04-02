@@ -1,4 +1,3 @@
-
 def log(msg):
     print("\n[LOG]:",msg)
 

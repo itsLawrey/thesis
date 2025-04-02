@@ -66,7 +66,7 @@ def process_toe(coord, search_radius, endpoints):
 # --- Main Correction Function ---
 def correct_toes_skeleton(yolo_predictions,
                           skeletons,
-                          save_images_flag=True,
+                          save_images_flag=False,
                           output_image_folder=None):
     """
     Corrects toe keypoints using skeleton endpoints within a DYNAMICALLY calculated radius
