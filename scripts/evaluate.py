@@ -21,7 +21,7 @@ def sort_nicely(files):
 
 
 
-def create_video_from_image_frames(folder_path, output_folder, fps=25):
+def create_video_from_image_frames(folder_path, output_folder, fps=25, flag=False):
     """
     Creates a video from image frames stored in a specified folder.
 
@@ -35,6 +35,11 @@ def create_video_from_image_frames(folder_path, output_folder, fps=25):
                             will be saved.
         fps (int): The desired frame rate for the output video. Defaults to 25.
     """
+    
+    if not flag:
+        return
+    
+    
     print(f"[INFO] Starting video creation from folder: {folder_path}")
     print(f"[INFO] Output will be saved in: {output_folder}")
 
@@ -492,7 +497,18 @@ def draw_uncorrected_predictions(yolo_results_list, output_folder=None, save_ima
 
     return annotated_image_objects # <--- Return the list of image objects
 
+def is_long_enough(folder_path, threshold=250):
 
+    IMAGE_EXTENSIONS = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff')
+    frame_count = 0
+  
+    frame_count = sum(1 for item in os.listdir(folder_path)
+                      if os.path.isfile(os.path.join(folder_path, item)) and
+                         item.lower().endswith(IMAGE_EXTENSIONS))
+
+
+    is_enough = frame_count > threshold
+    return is_enough
 
 # if __name__ == "__main__":
 #     create_video_from_image_frames('/home/dalloslorand/YOLO_lori/cut_video_images_4_pred/R5W1_500',

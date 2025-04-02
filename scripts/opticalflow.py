@@ -263,7 +263,10 @@ def discard_unwanted_frames(yolo_predictions, sam_masks, frame_decision):
 
     return filtered_yolo_predictions, filtered_sam_masks
 
-def filter_data(yolo_predictions, sam_masks, flow_diff_threshold):
+def filter_data(yolo_predictions, sam_masks):
+    
+    flow_diff_threshold = 0.2
+    
     decision_dict = make_frame_decisions(yolo_predictions, sam_masks, flow_diff_threshold)
     
     f_yolo, f_masks = discard_unwanted_frames(yolo_predictions, sam_masks, decision_dict)

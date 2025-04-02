@@ -14,20 +14,24 @@ def union_masks(masks):
         union = np.logical_or(union, m.astype(bool))
     return union.astype(np.uint8)
 
-def load_sam_model(model_type, checkpoint, device):
+def load_sam_model(device):
     """
     Loads the SAM model from the specified checkpoint and moves it to the chosen device.
     Returns a SamPredictor instance ready for segmentation.
     """
+    
+    SAM_MODEL_PATH = "/home/dalloslorand/YOLO_lori/sam_vit_h_4b8939.pth"
+    SAM_MODEL_TYPE = 'vit_h'
+    
     log("Loading SAM model...")
-    sam = sam_model_registry[model_type](checkpoint=checkpoint)
+    sam = sam_model_registry[SAM_MODEL_TYPE](SAM_MODEL_PATH)
     sam.to(device)
     log(f"SAM model loaded and moved to {device}.")
     return SamPredictor(sam)
 
-def get_masks_with_sam(predictions, model_type, checkpoint, device):
+def get_masks_with_sam(predictions, device):
     
-    sam_predictor = load_sam_model(model_type, checkpoint, device)
+    sam_predictor = load_sam_model(device)
     
     log("Computing SAM masks for each image...")
     

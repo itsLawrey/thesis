@@ -6,73 +6,89 @@ import mask
 import skeleton
 import evaluate
 import opticalflow
+import slice
+import tempfile
 from logs import log, warn
-
-#GLOBAL VARIABLES
-SAM_MODEL_PATH = "/home/dalloslorand/YOLO_lori/sam_vit_h_4b8939.pth"
-SAM_MODEL_TYPE = 'vit_h'
-
-YOLO_MODEL_PATH = "/home/dalloslorand/YOLO_lori/runs/pose/full_v8/weights/best.pt"
-
-FLOW_DIFF_THRESHOLD = 0.2
-
-OUTPUT_PATH = "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/scripts/out_videoinputtal"
-LABELS_PATH = f"{OUTPUT_PATH}/labels"
-MASKS_PATH = f"{OUTPUT_PATH}/masks"
-CORRECTED_PREDICTIONS_PATH = f"{OUTPUT_PATH}/predictions/corrected"
-ORIGINAL_PREDICTIONS_PATH = f"{OUTPUT_PATH}/predictions/original"
-VIDEO_PREDICTION_PATH = f"{OUTPUT_PATH}/predictions/videos"
-SKELETONS_PATH = f"{OUTPUT_PATH}/skeletons"
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu' 
 
-SAVE_INITIAL_PREDICTIONS = False
-SAVE_CORRECTED_PREDICTIONS = True
-SAVE_MASKS = False
-SAVE_SKELETON_CORRECTION_IMAGES = False
 
-def create_folders():
-    for folder in [OUTPUT_PATH, LABELS_PATH, CORRECTED_PREDICTIONS_PATH,ORIGINAL_PREDICTIONS_PATH,  MASKS_PATH, SKELETONS_PATH]:
+
+def execute(input_file, 
+            output_folder, 
+            save_initial_predictions=False,
+            save_original_predictions=False,
+            save_corrected_predictions=False,
+            save_masks=False,
+            save_skeletons=False,
+            save_original_vid=False,
+            save_corrected_vid=False):
+    
+    OUTPUT_PATH = output_folder
+    LABELS_PATH = f"{OUTPUT_PATH}/labels"
+    MASKS_PATH = f"{OUTPUT_PATH}/masks"
+    CORRECTED_PREDICTIONS_PATH = f"{OUTPUT_PATH}/predictions/corrected"
+    ORIGINAL_PREDICTIONS_PATH = f"{OUTPUT_PATH}/predictions/original"
+    INITIAL_PREDICTIONS_PATH = f"{OUTPUT_PATH}/predictions/initial"
+    VIDEO_PREDICTION_PATH = f"{OUTPUT_PATH}/predictions/videos"
+    SKELETONS_PATH = f"{OUTPUT_PATH}/skeletons"
+    
+    for folder in [OUTPUT_PATH, 
+                   LABELS_PATH, 
+                   CORRECTED_PREDICTIONS_PATH,
+                   ORIGINAL_PREDICTIONS_PATH,  
+                   MASKS_PATH, 
+                   SKELETONS_PATH, 
+                   VIDEO_PREDICTION_PATH, 
+                   INITIAL_PREDICTIONS_PATH]:
         os.makedirs(folder, exist_ok=True)
         log(f"Created {folder} for output.")
+        
+    SAVE_INITIAL_PREDICTIONS = save_initial_predictions
+    SAVE_ORIGINAL_PREDICTIONS = save_original_predictions
+    SAVE_CORRECTED_PREDICTIONS = save_corrected_predictions
+    SAVE_MASKS = save_masks
+    SAVE_SKELETON_CORRECTION_IMAGES = save_skeletons
+    SAVE_ORIGINAL_PRED_VIDEO = save_original_vid
+    SAVE_CORRECTED_PRED_VIDEO = save_corrected_vid
+    
+    #TODO: ha nem eleg hosszu akkor nem is futtatjuk a programot
+    
+    with tempfile.TemporaryDirectory(prefix="pipeline_frames_") as temp_dir:
+        frame_paths = slice.extract_frames_from_video(input_file, temp_dir)
 
-def execute(input_file):
-    
-    create_folders()
-    
+    #YOLO INFERENCE
+        
+        predictions = predict.predict_with_yolo(frame_paths, DEVICE)
+        
+        predict.save_initial_predictions(predictions, SAVE_INITIAL_PREDICTIONS, INITIAL_PREDICTIONS_PATH)
 
-#YOLO INFERENCE
-    
-    predictions = predict.predict_with_yolo(input_file, YOLO_MODEL_PATH)
-    
-    predict.save_initial_predictions(predictions, SAVE_INITIAL_PREDICTIONS, ORIGINAL_PREDICTIONS_PATH)
+    #SAM MASK IDENTIFICATION
+        
+        masks = mask.get_masks_with_sam(predictions, DEVICE)
+        
+        mask.save_sam_masks(masks, SAVE_MASKS, MASKS_PATH)
 
-#SAM MASK IDENTIFICATION
-    
-    masks = mask.get_masks_with_sam(predictions, SAM_MODEL_TYPE, SAM_MODEL_PATH, DEVICE)
-    
-    mask.save_sam_masks(masks, SAVE_MASKS, MASKS_PATH)
+    #OPTICAL FLOW FILTERING
+        
+        predictions_filtered, masks_filtered = opticalflow.filter_data(predictions, masks)
+        
+    #SKELETONIZE TOE CORRECTION
+        
+        skeletons = skeleton.get_skeletons(masks_filtered)
+        
+        corrected_predictions_dict = skeleton.correct_toes_skeleton(predictions_filtered, skeletons, SAVE_SKELETON_CORRECTION_IMAGES, SKELETONS_PATH)
 
-#OPTICAL FLOW FILTERING
-    
-    predictions_filtered, masks_filtered = opticalflow.filter_data(predictions, masks, FLOW_DIFF_THRESHOLD)
-    
-#SKELETONIZE TOE CORRECTION
-    
-    skeletons = skeleton.get_skeletons(masks_filtered)
-    
-    corrected_predictions_dict = skeleton.correct_toes_skeleton(predictions_filtered, skeletons, SAVE_SKELETON_CORRECTION_IMAGES, SKELETONS_PATH)
+    #SUMMING UP DATA - PLOTS, VIDEOS
 
-#SUMMING UP DATA - PLOTS, VIDEOS
-
-    images = evaluate.draw_corrected_predictions(corrected_predictions_dict, CORRECTED_PREDICTIONS_PATH, SAVE_CORRECTED_PREDICTIONS)
+        images = evaluate.draw_corrected_predictions(corrected_predictions_dict, CORRECTED_PREDICTIONS_PATH, SAVE_CORRECTED_PREDICTIONS)
+        
+        evaluate.draw_uncorrected_predictions(predictions_filtered, ORIGINAL_PREDICTIONS_PATH, SAVE_ORIGINAL_PREDICTIONS)
+        
+        evaluate.create_video_from_image_frames(CORRECTED_PREDICTIONS_PATH, VIDEO_PREDICTION_PATH, SAVE_CORRECTED_PRED_VIDEO)
+        
+        evaluate.create_video_from_image_frames(ORIGINAL_PREDICTIONS_PATH, VIDEO_PREDICTION_PATH, SAVE_ORIGINAL_PRED_VIDEO)
     
-    # evaluate.draw_uncorrected_predictions(predictions, ORIGINAL_PREDICTIONS_PATH)
-    
-    evaluate.create_video_from_image_frames(CORRECTED_PREDICTIONS_PATH, VIDEO_PREDICTION_PATH, 25)
-    
-    # evaluate.create_video_from_image_frames(ORIGINAL_PREDICTIONS_PATH, VIDEO_PREDICTION_PATH, 25)
-    
-    
+# TESTING PURPOSES
 if __name__ == "__main__":
-    execute('/home/dalloslorand/YOLO_lori/predicted_videos/sample_videos_for_prediction/R5W1_500.mp4')
+    execute('/home/dalloslorand/YOLO_lori/predicted_videos/sample_videos_for_prediction/R5W1_500.mp4',"/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/out/out_st")
