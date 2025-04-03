@@ -1,4 +1,4 @@
-from logs import log, warn
+from .logs import log, warn
 import numpy as np
 import cv2
 from segment_anything import sam_model_registry, SamPredictor

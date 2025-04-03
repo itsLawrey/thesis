@@ -1,14 +1,14 @@
 #IMPORTS
 import os
 import torch
-import predict
-import mask
-import skeleton
-import evaluate
-import opticalflow
-import slice
 import tempfile
-from logs import log, warn
+
+from pages.backend import predict, mask, skeleton, evaluate, opticalflow, slice
+from pages.backend.logs import log, warn
+
+import streamlit as st
+
+
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu' 
 
@@ -91,4 +91,46 @@ def execute(input_file,
     
 # TESTING PURPOSES
 if __name__ == "__main__":
-    execute('/home/dalloslorand/YOLO_lori/predicted_videos/sample_videos_for_prediction/R5W1_500.mp4',"/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/out/out_st")
+    
+    st.title("Execute the pipeline")
+    
+    st.markdown("### Generates data based on configuration.")
+    
+    if 'file_to_predict' in st.session_state and 'output_location' in st.session_state:
+        
+        ss = st.session_state
+
+        file_bytes = ss.file_to_predict.getvalue()
+        file_type = ss.file_to_predict.type
+        file_name = ss.file_to_predict.name        
+        
+        if st.button(label="PREDICT", help="press this to start predicting", use_container_width=True):
+            input_temp_path = None 
+            suffix = os.path.splitext(file_name)[1]
+            
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tfile:
+                tfile.write(file_bytes)
+                input_temp_path = tfile.name
+            #TODO PROGRESS FORGOS CUCCLI
+            execute(input_temp_path,
+                   st.session_state["output_location"],
+                   st.session_state["save_init_pred"],
+                   st.session_state["save_orig_pred"],
+                   st.session_state["save_corr_pred"],
+                   st.session_state["save_masks"],
+                   st.session_state["save_skel"],
+                   st.session_state["save_orig_vid"],
+                   st.session_state['save_corr_vid'],
+                   )#TODO CONFIDENCE RATE AND FLOW THRESHOLD AND STUFF
+            
+            op = st.session_state["output_location"]
+            st.success(f"✅✅✅okay big boy go see {op}✅✅✅")
+        
+            if input_temp_path and os.path.exists(input_temp_path):
+                os.remove(input_temp_path)
+                print(f"Temporary file deleted: {input_temp_path}")
+    else:
+        st.markdown("# Uh oh...👀")
+        st.markdown("### Upload a video and configure settings to be able to predict.")
+        st.subheader("Video and output path mandatory.")
+    

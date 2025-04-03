@@ -3,7 +3,7 @@ import os
 import numpy as np # Useful for handling keypoints array
 import re
 from pathlib import Path
-from logs import log, warn
+from .logs import log, warn
 
 def sort_nicely(files):
     """Sort the given list of files in a human-friendly way (numerically)."""
@@ -17,9 +17,6 @@ def sort_nicely(files):
         return [try_int(c) for c in re.split('([0-9]+)', s)]
 
     return sorted(files, key=alphanum_key)
-
-
-
 
 def create_video_from_image_frames(folder_path, output_folder, fps=25, flag=False):
     """
@@ -148,9 +145,6 @@ def create_video_from_image_frames(folder_path, output_folder, fps=25, flag=Fals
     print("[INFO] Releasing VideoWriter...")
     out.release()
     print(f"[INFO] Video creation complete. File saved at: {final_output_video_path}")
-
-
-
 
 def darker_color(color, amount=50):
     """Creates a darker version of the input BGR color."""
@@ -324,7 +318,6 @@ def draw_corrected_predictions(corrected_predictions_dict, output_folder=None, s
         log(f"Attempted to save {successfully_saved_count} annotated images to {output_path_obj}.")
 
     return annotated_image_objects # <--- Return the list of image objects
-
 
 def draw_uncorrected_predictions(yolo_results_list, output_folder=None, save_images=False):
     """
@@ -510,7 +503,7 @@ def is_long_enough(folder_path, threshold=250):
     is_enough = frame_count > threshold
     return is_enough
 
-# if __name__ == "__main__":
-#     create_video_from_image_frames('/home/dalloslorand/YOLO_lori/cut_video_images_4_pred/R5W1_500',
-#                                    "/home/dalloslorand/YOLO_lori/predicted_videos/sample_videos_for_prediction",
-#                                    25)
+#TODO GET CORRECTED LABELS
+#TODO GENERATE SCALE FROM POLETT VIDEOS
+def conclusions(labels):
+    

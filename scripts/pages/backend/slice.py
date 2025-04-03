@@ -3,7 +3,7 @@ import os
 import tempfile
 import shutil
 import re # For sort_nicely if needed
-from logs import log, warn
+from .logs import log, warn
 # --- New Function to Extract Frames ---
 def extract_frames_from_video(video_path, output_folder):
     """

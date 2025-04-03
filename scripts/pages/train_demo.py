@@ -4,16 +4,14 @@ import json
 import shutil
 import cv2 # To get image dimensions
 from pathlib import Path # For easier path handling
-import time # Added for potential timing/logging
 import random
 import yaml # Requires PyYAML (pip install pyyaml)
-from logs import log, warn
+from pages.backend.logs import log, warn
+import pages.backend.train as train
 
+import streamlit as st
+from streamlit_option_menu import option_menu
 
-
-# --- Logging Functions ---
-def log(msg): print(f"[LOG] {msg}")
-def warn(msg): print(f"[WARNING] {msg}")
 
 def create_and_split_yolo_dataset(input_folder_list, output_split_dir, train_ratio=0.7, seed=42, save_consolidated_json=False):
     """
@@ -390,36 +388,104 @@ def create_data_yaml(output_dir, yaml_paths, bodypart_names):
     return True
 
 
-# --- Example Usage ---
+BIOLOGIST_DATA_FOLDER_LIST = [
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat01_week19",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat01_week20",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat3_week1",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat4_week1",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat5_week1",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat5_week3",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat8_week1",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat8_week2",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat8_week3",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat11_week12",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat28_week13",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat31_week19",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat31_week20",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat32_week19",
+    "/home/dalloslorand/YOLO_lori/BSC THESIS/thesis/in/demo/untouched/Rat32_week20",
+]
+
+
 if __name__ == "__main__":
-    # Input folders from biologists
-    BIOLOGIST_DATA_FOLDER_LIST = [
-        r"C:\Users\loran\OneDrive - elte.hu\ELTE\szakdolgozat\program\in\demo_from_scratch\Rat3_week1",
-        r'C:\Users\loran\OneDrive - elte.hu\ELTE\szakdolgozat\program\in\demo_from_scratch\Rat31_week19'
-    ]
-    # Directory where the final split dataset (train/val/test/config) will be created
-    FINAL_SPLIT_OUTPUT_DIR = r"C:\Users\loran\OneDrive - elte.hu\ELTE\szakdolgozat\program\models\training_data\datasets\ds_integrated_1"
+    
+    st.title("Data Preparation Demo")
+    
+    st.markdown("Here you can practice what it's like to train a model")
+    st.markdown("### 1) Choose training data folders to include in the demo dataset ⤵️")
+    st.write("---")
+    
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        t1 = st.toggle("Rat01_week19")
+        t2 = st.toggle("Rat01_week20")
+        t3 = st.toggle("Rat3_week1")
+        t4 = st.toggle("Rat4_week1")
+        t5 = st.toggle("Rat5_week1")
+    
+    with col2:
+        t6 = st.toggle("Rat5_week3")
+        t7 = st.toggle("Rat8_week1")
+        t8 = st.toggle("Rat8_week2")
+        t9 = st.toggle("Rat8_week3")
+        t10 = st.toggle("Rat11_week12")
+        
+    with col3:
+        t11 = st.toggle("Rat28_week13")
+        t12 = st.toggle("Rat31_week19")
+        t13 = st.toggle("Rat31_week20")
+        t14 = st.toggle("Rat32_week19")
+        t15 = st.toggle("Rat32_week20")
+        
+    t_list = [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15]
+    
+    inputlist = []
+    
+    for folder, bool in zip(BIOLOGIST_DATA_FOLDER_LIST, t_list):    
+        if bool:
+            inputlist.append(folder)
+            
+    st.write('---')
+    train_ratio = st.slider("Ratio of train data compared to whole dataset in percentage:", min_value=0.0, max_value=1.0)
+    yaml_output = st.text_input("Full output path of data.yaml needed to train yolo pose model", placeholder="full path to save data.yaml to...")
+    yaml_seed = st.number_input("Give a seed to randomise which images get added to the training/validation/testing folders", placeholder="random number", step=1, value=42)
+        
+    col1, col2, col3 = st.columns(3)
+    with col2:
+        yaml_btn = st.button("CREATE DATASET FOR YOLO", use_container_width=True)
+        if yaml_btn:
+            st.success("Creating dataset...")
+            overall_success, _ = create_and_split_yolo_dataset(
+                input_folder_list=inputlist,
+                output_split_dir=yaml_output,
+                train_ratio=train_ratio,
+                seed=yaml_seed,
+                save_consolidated_json=False
+            )
+            st.success("✅Dataset created and yaml is saved.")
+            
+    st.write('---')
+    st.markdown("### 2) Use your dataset to train a pose model! 🚀")
+    col1, col2 = st.columns(2)
+    with col1:
+            
+        yaml_input = st.text_input("Provide the path of the input data.yaml file you wish to use", placeholder="input data.yaml")
+        yolo_output = st.text_input("Provide the output folder path of the trained yolo model", placeholder="yolo output")
+        
 
-    # Ratio for the training set (e.g., 80%)
-    TRAIN_SPLIT_RATIO = 0.8
+    with col2:
+        yolo_name = st.text_input("Give your model a name", placeholder="yolo name")
+        yolo_epochs = st.number_input("Number of epochs to train the model for", placeholder="epochs", step=1, value=5)
 
-    # Random seed for reproducible splits
-    RANDOM_SEED = 42
-
-    # --- Run the integrated processing, splitting, and saving ---
-    overall_success, _ = create_and_split_yolo_dataset(
-        input_folder_list=BIOLOGIST_DATA_FOLDER_LIST,
-        output_split_dir=FINAL_SPLIT_OUTPUT_DIR,
-        train_ratio=TRAIN_SPLIT_RATIO,
-        seed=RANDOM_SEED,
-        save_consolidated_json=False # Set to True if you want the extra JSON file
-    )
-
-    # --- Final Status ---
-    if overall_success:
-        log("\nIntegrated dataset creation and splitting completed successfully!")
-        log(f"Split dataset located at: {Path(FINAL_SPLIT_OUTPUT_DIR).resolve()}")
-    else:
-        log("\nProcess finished with errors or warnings.")
-
-    log("Script finished.")
+        
+        
+    col1, col2, col3 = st.columns(3)
+    with col2:
+        train_btn = st.button("TRAIN YOLO MODEL", use_container_width=True)
+        if train_btn:
+            st.success("☕Model training started. Take a coffee break.")
+            train.train_model(yaml_input, yolo_epochs, yolo_output, yolo_name)
+            st.success("✅Model training finished.")
+            
